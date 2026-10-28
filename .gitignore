@@ -1,0 +1,12 @@
+.vendor/
+.venv/
+__pycache__/
+*.py[cod]
+output/
+tmp/
+*.cbz
+*.cbr
+*.pdf
+verify.py
+.env
+.env.*

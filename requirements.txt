@@ -1,0 +1,2 @@
+img2pdf==0.6.3
+rarfile==4.5
