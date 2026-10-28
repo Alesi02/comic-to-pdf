@@ -23,6 +23,8 @@ Original pixel dimensions are retained. There is no resizing or lossy recompress
 
 Supported image extensions: JPEG, PNG, WebP, BMP, TIFF, GIF and JPEG 2000. Non-image entries are ignored. A supported image that cannot be decoded causes conversion to fail with an error beside its file.
 
+PDF page sizes use a consistent 300 DPI, ignoring missing or inconsistent image DPI metadata. Equal pixel dimensions therefore produce equal page sizes. Wider spreads retain their proportions. This affects physical PDF page size only; image pixels are never resampled.
+
 ## Privacy and offline use
 
 After setup, conversion works offline. The app listens only on `127.0.0.1` and sends no comics to an external service. Files selected in the browser are transferred only to the local app on the same computer. Temporary copies are removed after conversion.

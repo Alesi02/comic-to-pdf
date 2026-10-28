@@ -51,6 +51,9 @@ def convert(source, destination, progress=lambda message: None):
             partial = Path(temp) / 'result.pdf'
             with partial.open('wb') as stream:
                 img2pdf.convert(*pages, outputstream=stream,
+                               # Image DPI metadata can be absent or inconsistent.
+                               # Set physical page size without resampling pixels.
+                               layout_fun=img2pdf.get_fixed_dpi_layout_fun((300, 300)),
                                rotation=img2pdf.Rotation.ifvalid)
             # Exclusive creation protects existing PDFs, including simultaneous conversions.
             number = 0
