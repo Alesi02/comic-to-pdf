@@ -44,6 +44,3 @@ python converter.py "comic.cbz" --output "output"
 
 The browser launcher and **Open output folder** button target Windows.
 
-## Tests
-
-Run `python -m unittest discover -s tests -v` with dependencies installed. Tests create their own images and archives, checking page ordering, JPEG byte preservation, lossless PNG pixels, filename collision handling and invalid archives.
