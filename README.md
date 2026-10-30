@@ -23,7 +23,7 @@ Original pixel dimensions are retained. There is no resizing or lossy recompress
 
 Supported image extensions: JPEG, PNG, WebP, BMP, TIFF, GIF and JPEG 2000. Non-image entries are ignored. A supported image that cannot be decoded causes conversion to fail with an error beside its file.
 
-PDF page sizes use a consistent 300 DPI, ignoring missing or inconsistent image DPI metadata. Equal pixel dimensions therefore produce equal page sizes. Wider spreads retain their proportions. This affects physical PDF page size only; image pixels are never resampled.
+Every page in a PDF has the same height: the most common page height calculated at 300 DPI, ignoring image DPI metadata. If heights tie, the first height in reading order wins. Each page's width is adjusted proportionally to preserve the original image's aspect ratio, including wider spreads. Pages already at the chosen height retain their size. This changes PDF placement only; image pixels are never resampled or recompressed.
 
 ## Privacy and offline use
 

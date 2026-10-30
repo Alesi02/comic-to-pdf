@@ -10,6 +10,43 @@ from PIL import Image
 
 
 class ConversionTests(unittest.TestCase):
+    def test_common_height_preserves_ratios_and_jpeg_bytes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            folder = Path(folder)
+            comic = folder / 'different-heights.cbz'
+            sizes = [(100, 100), (150, 225), (150, 225), (300, 450), (300, 225)]
+            originals = []
+            with zipfile.ZipFile(comic, 'w') as archive:
+                for index, size in enumerate(sizes):
+                    data = io.BytesIO()
+                    Image.new('RGB', size, (index * 40, 127, 221)).save(data, 'JPEG')
+                    originals.append(data.getvalue())
+                    archive.writestr(f'{index}.jpg', originals[-1])
+            target, _ = convert(comic, folder)
+            with pikepdf.open(target) as pdf:
+                for index, page in enumerate(pdf.pages):
+                    width, height = map(float, list(page.MediaBox)[2:])
+                    self.assertAlmostEqual(height, 54)
+                    self.assertAlmostEqual(width / height, sizes[index][0] / sizes[index][1])
+                    image = list(page.Resources.XObject.values())[0]
+                    self.assertEqual(image.read_raw_bytes(), originals[index])
+                    self.assertEqual((image.Width, image.Height), sizes[index])
+                self.assertEqual(list(pdf.pages[1].MediaBox), [0, 0, 36, 54])
+
+    def test_height_tie_uses_first_page(self):
+        with tempfile.TemporaryDirectory() as folder:
+            folder = Path(folder)
+            comic = folder / 'tie.cbz'
+            with zipfile.ZipFile(comic, 'w') as archive:
+                for index, size in enumerate([(100, 200), (100, 300)]):
+                    data = io.BytesIO()
+                    Image.new('RGB', size).save(data, 'PNG')
+                    archive.writestr(f'{index}.png', data.getvalue())
+            target, _ = convert(comic, folder)
+            with pikepdf.open(target) as pdf:
+                for page in pdf.pages:
+                    self.assertAlmostEqual(float(page.MediaBox[3]), 48)
+
     def test_page_size_ignores_inconsistent_dpi(self):
         with tempfile.TemporaryDirectory() as folder:
             folder = Path(folder)

@@ -4,17 +4,48 @@ import re
 import sys
 import tempfile
 import zipfile
+from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / '.vendor'))
 import img2pdf
 import rarfile
+import pikepdf
 
 EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tif', '.tiff', '.gif', '.jp2', '.jpx'}
 
 
 def natural_key(name):
     return [int(s) if s.isdigit() else s.casefold() for s in re.split(r'(\d+)', name)]
+
+
+def normalize_page_heights(source, destination):
+    """Change PDF placement only; keep embedded image streams untouched."""
+    with pikepdf.open(source) as pdf:
+        dimensions = []
+        for page in pdf.pages:
+            x0, y0, x1, y1 = map(float, page.MediaBox)
+            width, height = x1 - x0, y1 - y0
+            rotated = int(page.obj.get('/Rotate', 0)) % 180 == 90
+            dimensions.append((width, height, x0, y0, rotated))
+        # Round away insignificant PDF decimal differences. Ties use the first
+        # height encountered in reading order.
+        heights = [round(w if rotated else h, 6)
+                   for w, h, _, _, rotated in dimensions]
+        target_height = Counter(heights).most_common(1)[0][0]
+        for page, (width, height, x0, y0, rotated), visible_height in zip(
+                pdf.pages, dimensions, heights):
+            if visible_height == target_height:
+                continue
+            scale = target_height / (width if rotated else height)
+            transform = f'q {scale:.12g} 0 0 {scale:.12g} {-x0 * scale:.12g} {-y0 * scale:.12g} cm\n'
+            page.contents_add(pikepdf.Stream(pdf, transform.encode('ascii')), prepend=True)
+            page.contents_add(pikepdf.Stream(pdf, b'\nQ\n'))
+            page.MediaBox = [0, 0, width * scale, height * scale]
+            # img2pdf normally sets no CropBox; keep it consistent if present.
+            if '/CropBox' in page.obj:
+                page.CropBox = page.MediaBox
+        pdf.save(destination)
 
 
 def convert(source, destination, progress=lambda message: None):
@@ -48,13 +79,16 @@ def convert(source, destination, progress=lambda message: None):
                     shutil.copyfileobj(src, dst)
                 pages.append(str(page))
             progress(f'Writing PDF · {len(pages)} images')
-            partial = Path(temp) / 'result.pdf'
-            with partial.open('wb') as stream:
+            initial = Path(temp) / 'initial.pdf'
+            with initial.open('wb') as stream:
                 img2pdf.convert(*pages, outputstream=stream,
                                # Image DPI metadata can be absent or inconsistent.
                                # Set physical page size without resampling pixels.
                                layout_fun=img2pdf.get_fixed_dpi_layout_fun((300, 300)),
                                rotation=img2pdf.Rotation.ifvalid)
+            progress('Making all page heights consistent')
+            partial = Path(temp) / 'result.pdf'
+            normalize_page_heights(initial, partial)
             # Exclusive creation protects existing PDFs, including simultaneous conversions.
             number = 0
             while True:
